@@ -1,0 +1,217 @@
+---
+title: "HGLMM Applications"
+format:
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 3
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+    fig_caption: yes
+    df-print: paged
+embed-resources: true
+editor: source
+editor_options: 
+  chunk_output_type: console
+execute:
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: setup
+#| message: false
+
+library(spmodel)
+library(sf)
+library(mhglmm.laplace)
+```
+
+# Voter Turnout Data
+```{r}
+################ Voter Turnout Data
+maxvar <- 250*var(logit(Tex_turnout80$pc_turnout))
+maxrange <- 0.9999999
+W <- 1 * (as.matrix(dist(st_coordinates(Tex_turnout80) / 1000)) < 150)
+diag(W) <- 0
+# W_st <- W / rowSums(W)
+# M_st <- diag(1/rowSums(W))
+
+# fit models binomial
+spcov_init <- spcov_initial("car", de = 0.5 * maxvar, range = 0.5 * maxrange)
+spmod_car <- spgautor(
+  formula = bin_turnout ~ pc_college + I(pc_homeownership^3) + I(log(pc_income)),
+  family = "binomial",
+  data = Tex_turnout80,
+  spcov_initial = spcov_init,
+  W = W
+)
+summary(spmod_car)
+
+maxvar <-  1000*var(logit(Tex_turnout80$pc_turnout))
+maxrange <-  0.9999999
+spcov_init <- spcov_initial("sar", de = 0.5 * maxvar, range = 0.5 * maxrange)
+spmod_sar <- spgautor(
+  formula = bin_turnout ~ pc_college + I(pc_homeownership^3) + I(log(pc_income)),
+  family = "binomial",
+  data = Tex_turnout80,
+  spcov_initial = spcov_init,
+  W = W
+)
+summary(spmod_sar)
+
+glances(spmod_car, spmod_sar)
+
+# fit models beta
+maxvar <-  100*var(logit(Tex_turnout80$pc_turnout))
+maxrange <-  0.99999999
+maxphi <-  10000
+spcov_init <- spcov_initial("car", de = 0.5 * maxvar, range = 0.5 * maxrange)
+dispersion_init <- dispersion_initial("beta", dispersion = 0.5 * maxphi)
+spmod_car <- spgautor(
+  formula = pc_turnout ~ pc_college + I(pc_homeownership^3) + I(log(pc_income)),
+  data = Tex_turnout80,
+  spcov_initial = spcov_init,
+  dispersion_initial = dispersion_init,
+  W = W
+)
+summary(spmod_car)
+
+maxvar <-  1000*var(logit(Tex_turnout80$pc_turnout))
+maxrange <-  0.99999999
+maxphi <-  10000
+spcov_init <- spcov_initial("sar", de = 0.12 * maxvar, range = 0.12 * maxrange)
+dispersion_init <- dispersion_initial("beta", dispersion = 0.12 * maxphi)
+spmod_sar <- spgautor(
+  formula = pc_turnout ~ pc_college + I(pc_homeownership^3) + I(log(pc_income)),
+  data = Tex_turnout80,
+  spcov_initial = spcov_init,
+  dispersion_initial = dispersion_init,
+  W = W,
+  control = list(reltol = 1e-5)
+)
+summary(spmod_sar)
+
+glances(spmod_car, spmod_sar)
+```
+
+# Seal Data
+```{r}
+y <- seal_counts$count
+maxvar <- 2 * var(log(y + 1))
+maxrange <- 25
+################ Seal Data
+spcov_init <- spcov_initial("exponential", de = 0.12 * maxvar,
+                            range = 0.12 * maxrange, ie = 0.12 * maxvar)
+randcov_init <- randcov_initial("(1 | yrfact)" = 0.12 * maxvar)
+spmod_pois <- spglm(
+  formula = count ~ polyid + I(time_from_low/60) + I((time_from_low/60)^2) +
+    hrstd + I(hrstd^2),
+  family = "poisson",
+  data = seal_counts,
+  spcov_initial = spcov_init,
+  xcoord = yr,
+  random = ~ yrfact,
+  randcov_initial = randcov_init,
+  partition_factor = ~ polyid,
+  control = list(reltol = 1e-8)
+)
+summary(spmod_pois)
+rho_pois <- 1 / exp(1 / coef(spmod_pois, "spcov")[["range"]])
+rho_pois
+
+
+maxvar <- 2*var(log(y + 1))
+maxrange <-  25
+maxphi <- 100
+spcov_init <- spcov_initial("exponential", de = 0.12 * maxvar,
+                            range = 0.12 * maxrange, ie = 0, known = "ie")
+randcov_init <- randcov_initial("(1 | yrfact)" = 0.12 * maxvar)
+dispersion_init <- dispersion_initial("nbinomial", dispersion = 0.12 * maxphi)
+spmod_nb <- spglm(
+  formula = count ~ polyid + I(time_from_low/60) + I((time_from_low/60)^2) +
+    hrstd + I(hrstd^2),
+  data = seal_counts,
+  spcov_initial = spcov_init,
+  dispersion_initial = dispersion_init,
+  xcoord = yr,
+  random = ~ yrfact,
+  randcov_initial = randcov_init,
+  partition_factor = ~ polyid,
+  control = list(reltol = 1e-8)
+)
+summary(spmod_nb)
+rho_nb <- 1 / exp(1 / coef(spmod_nb, "spcov")[["range"]])
+rho_nb
+```
+
+# Moss Data
+```{r}
+################ Moss Data
+DF <-  data.frame(st_drop_geometry(MOSSobs),
+                easting = st_coordinates(MOSSobs)[, 1]/1e+3,
+                northing = st_coordinates(MOSSobs)[, 2]/1e+3)
+DF$year <- as.factor(DF$year)
+DF$field_dup <- as.factor(DF$field_dup)
+DF$logdist2road <- log(DF$dist2road)
+spmod_gamma <-  spglm(
+  formula = Pb ~ year + logdist2road + logdist2road:sideroad,
+  family = "Gamma",
+  data = DF,
+  spcov_type = "exponential",
+  xcoord = "easting",
+  ycoord = "northing",
+  partition_factor = ~ year,
+  random = ~ sample + sample:field_dup,
+  estmethod = "ml"
+)
+summary(spmod_gamma)
+
+spmod_gamma2 <-  spglm(
+  formula = Pb ~ year + logdist2road + sideroad + logdist2road:sideroad,
+  family = "Gamma",
+  data = DF,
+  spcov_type = "exponential",
+  xcoord = "easting",
+  ycoord = "northing",
+  partition_factor = ~ year,
+  random = ~ sample + sample:field_dup,
+  estmethod = "ml"
+)
+summary(spmod_gamma2)
+
+glances(spmod_gamma, spmod_gamma2)
+
+spmod_ig <-  spglm(
+  formula = Pb ~ year + logdist2road + logdist2road:sideroad,
+  family = "inverse.gaussian",
+  data = DF,
+  spcov_type = "exponential",
+  xcoord = "easting",
+  ycoord = "northing",
+  partition_factor = ~ year,
+  random = ~ sample + sample:field_dup,
+  estmethod = "ml"
+)
+summary(spmod_ig)
+glances(spmod_gamma, spmod_ig)
+
+spmod_lm <-  splm(
+  formula = log(Pb) ~ year + logdist2road + logdist2road:sideroad,
+  data = DF,
+  spcov_type = "exponential",
+  xcoord = "easting",
+  ycoord = "northing",
+  partition_factor = ~ year,
+  random = ~ sample + sample:field_dup,
+  estmethod = "ml"
+)
+summary(spmod_lm)
+```
+
+# Session Information
+```{r}
+sessionInfo()
+```
+

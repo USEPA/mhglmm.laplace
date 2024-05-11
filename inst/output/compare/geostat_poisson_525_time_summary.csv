@@ -1,0 +1,5 @@
+software,type,time
+glmmTMB,fixed,44.096333333333554
+glmmTMB,preds,65.5380000000001
+spmodel,fixed,6.45766666666641
+spmodel,preds,0.3219999999999951

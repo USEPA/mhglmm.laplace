@@ -1,0 +1,7 @@
+software,type,time
+glmmTMB,fixed,0.9256666666666509
+glmmTMB,preds,2.3349999999998543
+spBayes,fixed,66.22933333333346
+spBayes,preds,7.8193333333332395
+spmodel,fixed,1.095000000000103
+spmodel,preds,0.1400000000001455
