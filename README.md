@@ -27,11 +27,18 @@ install.packages("remotes") # if you don't already have remotes installed
 remotes::install_github("USEPA/mhglmm.laplace", ref = "main", dependencies = TRUE)
 ```
 
-### Manuscript Results
+### Scripts
 
 The files required to reproduce the results in the manuscript are available at the file path found by running
 ```r
 system.file("scripts", package = "mhglmm.laplace")
+```
+
+### Output
+
+The files required to view the results in the manuscript are available at the file path found by running
+```r
+system.file("output", package = "mhglmm.laplace")
 ```
 
 ## Disclaimer
