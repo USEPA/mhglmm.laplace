@@ -1,3 +1,4 @@
+# install any necessary packages using install.packages("package_name")
 library(spBayes)
 library(MBA)
 library(coda)
@@ -6,6 +7,7 @@ library(glmmTMB)
 library(xtable)
 library(viridis)
 library(classInt)
+# load supplementary R package
 library(mhglmm.laplace)
 
 ################################################################################
